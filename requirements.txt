@@ -1,0 +1,11 @@
+selenium
+pandas
+schedule
+python-dotenv
+webdriver-manager
+openpyxl
+customtkinter
+matplotlib
+packaging
+pillow
+pyinstaller
