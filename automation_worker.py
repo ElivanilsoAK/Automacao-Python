@@ -1188,60 +1188,63 @@ class AutomationWorker(threading.Thread):
 
             count_sent = 0
             for receiver_email in recipients_list:
-                msg = MIMEMultipart('related')
-                msg['From'] = sender_email
-                msg['To'] = receiver_email
-                msg['Subject'] = f"📊 Relatório Diário de Obra — {datetime.datetime.now().strftime('%d/%m/%Y')}"
+                try:
+                    msg = MIMEMultipart('related')
+                    msg['From'] = sender_email
+                    msg['To'] = receiver_email
+                    msg['Subject'] = f"📊 Relatório Diário de Obra — {datetime.datetime.now().strftime('%d/%m/%Y')}"
 
-                msg_alternative = MIMEMultipart('alternative')
-                msg.attach(msg_alternative)
+                    msg_alternative = MIMEMultipart('alternative')
+                    msg.attach(msg_alternative)
 
-                msg_text = MIMEText(report_data['html'], 'html')
-                msg_alternative.attach(msg_text)
+                    msg_text = MIMEText(report_data['html'], 'html')
+                    msg_alternative.attach(msg_text)
 
-                # Imagens inline (gráficos)
-                for c_id, img_data in report_data['images'].items():
-                    img_part = MIMEBase('image', 'png')
-                    img_part.set_payload(img_data)
-                    encoders.encode_base64(img_part)
-                    img_part.add_header('Content-ID', f'<{c_id}>')
-                    # FIX: removida a linha duplicada de Content-Disposition
-                    img_part.add_header('Content-Disposition', 'inline', filename=f'{c_id}.png')
-                    msg.attach(img_part)
+                    # Imagens inline (gráficos)
+                    for c_id, img_data in report_data['images'].items():
+                        img_part = MIMEBase('image', 'png')
+                        img_part.set_payload(img_data)
+                        encoders.encode_base64(img_part)
+                        img_part.add_header('Content-ID', f'<{c_id}>')
+                        # FIX: removida a linha duplicada de Content-Disposition
+                        img_part.add_header('Content-Disposition', 'inline', filename=f'{c_id}.png')
+                        msg.attach(img_part)
 
-                # Imagem resumo como anexo
-                summary_path = report_data.get('summary_image')
-                if summary_path and os.path.exists(summary_path):
-                    try:
-                        with open(summary_path, 'rb') as f:
-                            part = MIMEBase('image', 'png')
-                            part.set_payload(f.read())
-                            encoders.encode_base64(part)
-                            part.add_header('Content-Disposition', 'attachment; filename="Resumo_Obra.png"')
-                            msg.attach(part)
-                            self.log("Imagem resumo anexada.")
-                    except Exception as e:
-                        self.log(f"Erro ao anexar resumo: {e}")
+                    # Imagem resumo como anexo
+                    summary_path = report_data.get('summary_image')
+                    if summary_path and os.path.exists(summary_path):
+                        try:
+                            with open(summary_path, 'rb') as f:
+                                part = MIMEBase('image', 'png')
+                                part.set_payload(f.read())
+                                encoders.encode_base64(part)
+                                part.add_header('Content-Disposition', 'attachment; filename="Resumo_Obra.png"')
+                                msg.attach(part)
+                                self.log("Imagem resumo anexada.")
+                        except Exception as e:
+                            self.log(f"Erro ao anexar resumo: {e}")
 
-                # Planilha Excel com presentes (por departamento)
-                xlsx_path = report_data.get('xlsx_presentes')
-                if xlsx_path and os.path.exists(xlsx_path):
-                    try:
-                        with open(xlsx_path, 'rb') as f:
-                            part_xlsx = MIMEBase('application',
-                                'vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-                            part_xlsx.set_payload(f.read())
-                            encoders.encode_base64(part_xlsx)
-                            fname = os.path.basename(xlsx_path)
-                            part_xlsx.add_header('Content-Disposition',
-                                f'attachment; filename="{fname}"')
-                            msg.attach(part_xlsx)
-                            self.log(f"Planilha Excel anexada: {fname}")
-                    except Exception as e:
-                        self.log(f"Erro ao anexar planilha Excel: {e}")
+                    # Planilha Excel com presentes (por departamento)
+                    xlsx_path = report_data.get('xlsx_presentes')
+                    if xlsx_path and os.path.exists(xlsx_path):
+                        try:
+                            with open(xlsx_path, 'rb') as f:
+                                part_xlsx = MIMEBase('application',
+                                    'vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+                                part_xlsx.set_payload(f.read())
+                                encoders.encode_base64(part_xlsx)
+                                fname = os.path.basename(xlsx_path)
+                                part_xlsx.add_header('Content-Disposition',
+                                    f'attachment; filename="{fname}"')
+                                msg.attach(part_xlsx)
+                                self.log(f"Planilha Excel anexada: {fname}")
+                        except Exception as e:
+                            self.log(f"Erro ao anexar planilha Excel: {e}")
 
-                server.sendmail(sender_email, receiver_email, msg.as_string())
-                count_sent += 1
+                    server.sendmail(sender_email, receiver_email, msg.as_string())
+                    count_sent += 1
+                except Exception as ex:
+                    self.log(f"⚠️ Erro ao enviar email para {receiver_email}: {ex}")
 
             server.quit()
             return f"✅ Relatório enviado para {count_sent} destinatário(s)!"
